@@ -1211,21 +1211,27 @@ int ftplib::FtpXfer(const char *localfile, const char *path, ftphandle *nControl
 
 #ifndef NOLFS
 		local = fopen64(localfile, ac);
-		if (type == ftplib::filewriteappend) fseeko64(local,mp_ftphandle->offset,SEEK_SET);
 #else
-		local = fopen(localfile, ac);
-		if (type == ftplib::filewriteappend) fseek(local,mp_ftphandle->offset,SEEK_SET);	
+		local = fopen(localfile, ac);	
 #endif
 		if (local == NULL)
 		{
 			strncpy(nControl->response, strerror(errno), sizeof(nControl->response));
 			return 0;
 		}
+#ifndef NOLFS
+		if (type == ftplib::filewriteappend) fseeko64(local,mp_ftphandle->offset,SEEK_SET);
+#else
+		if (type == ftplib::filewriteappend) fseek(local,mp_ftphandle->offset,SEEK_SET);
+#endif
 	}
 	if (local == NULL) local = ((type == ftplib::filewrite)
 		|| (type == ftplib::filewriteappend)) ? stdin : stdout;
-	if (!FtpAccess(path, type, mode, nControl, &nData)) return 0;
-
+	if (!FtpAccess(path, type, mode, nControl, &nData)) {
+		if (localfile != NULL) fclose(local);
+		return 0;
+	}
+	
 	dbuf = static_cast<char*>(malloc(FTPLIB_BUFSIZ));
 	if ((type == ftplib::filewrite) || (type == ftplib::filewriteappend))
 	{
